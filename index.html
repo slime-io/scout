@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>test</title>
+  </head>
+  <style>
+    .node circle {
+      fill: #fff;
+      stroke: steelblue;
+      stroke-width: 1.5px;
+    }
+    .node {
+      font: 12px sans-serif;
+    }
+    .link {
+      fill: none;
+      stroke: #ccc;
+      stroke-width: 1.5px;
+    }
+  </style>
+  <body>
+  <div style="width:100%;  margin-left: auto;margin-right: auto;" align="left">
+    <div style="width:20%; float:left; position: fixed;">
+<!--      <textarea id="expr" rows="40" cols="50"></textarea>-->
+      <input id="size" type="range" min="45" max="300" value="45"/>
+      <pre><code id="scanner"></code></pre>
+    </div>
+    <div style="width:80%; float:left; ">
+      <pre><code id="msgBox"></code></pre>
+      <div id="graph"></div>
+    </div>
+  </div>
+  <script type="text/javascript" src="d3.v3.min.js"></script>
+  <script type="text/javascript" src="target/scala-2.13/scout-scala-jsdeps.min.js"></script>
+  <script type="text/javascript" src="target/scala-2.13/scout-scala-fastopt/main.js"></script>
+  </body>
+</html>

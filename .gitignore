@@ -1,0 +1,9 @@
+/.idea
+/.bsp
+/target
+/project/target
+/project/project
+/proto/target
+/proto/project/target
+/proto/project/project
+/proto/.bsp
