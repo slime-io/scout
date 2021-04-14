@@ -1,19 +1,43 @@
 package scout
 
+import org.scalajs.jquery.JQueryStatic
+import scout.cmd.Command
+
+import scala.scalajs.js.annotation.JSImport
+
 /**
  * Created by 张武(zhangwu@corp.netease.com) at 2021/4/8
  */
 object UI {
 
-  import org.querki.jquery._
+  import scala.scalajs.js
   import scala.scalajs.js._
-  def init(data: Node): Unit = {
-    $("#size").on("input propertychange", () => render(data))
-    UI.render(data)
+
+  @js.native
+  @JSImport("jquery", JSImport.Namespace)
+  object $ extends JQueryStatic
+
+  @js.native
+  @JSImport("d3", JSImport.Namespace)
+  object _d3 extends Any
+  val d3 = _d3.asInstanceOf[Dynamic]
+
+  var uiNode: Node = Main.data
+
+  def init(): Unit = {
+    $("#size").on("input propertychange", () => render())
+    $("#curl").keyup{ () =>
+      val cmd = $("#curl").`val`().asInstanceOf[String]
+      uiNode = Command(cmd).map{ c =>
+        c.exec()
+      }.getOrElse(Main.data)
+      render()
+    }
+    UI.render()
   }
 
   def nodeForJS(node: Node): Dynamic = {
-    val ch = if (node.isOpen) Array(node.chch: _*).map(nodeForJS) else Array()
+    val ch = if (node.isOpen) Array(node.children: _*).map(nodeForJS) else Array()
     Dynamic.literal(
       name = Node.split(node.view),
       children = ch,
@@ -21,8 +45,7 @@ object UI {
     )
   }
 
-  def render(json: Node): Unit = {
-    val d3 = Dynamic.global.d3
+  def render(): Unit = {
 
     $("#msgBox").text("")
     //    val src = $("#expr").`val`().asInstanceOf[String]
@@ -44,7 +67,7 @@ object UI {
       .append("g")
       .attr("transform", "translate(40,0)")
     def hasChildren(d: Dynamic) = scala.util.Try(d.children.asInstanceOf[Array[_]].nonEmpty).getOrElse(false)
-    val nodes = tree.nodes(nodeForJS(json))
+    val nodes = tree.nodes(nodeForJS(uiNode))
     svg.selectAll(".link")
       .data(tree.links(nodes))
       .enter()
@@ -73,7 +96,7 @@ object UI {
       .on("click", (v1: Any, v2: Any) => {
         val nodeId = v1.asInstanceOf[Dynamic].nodeId.asInstanceOf[Int]
         Node.switch(nodeId)
-        render(json)
+        render()
       })
   }
 

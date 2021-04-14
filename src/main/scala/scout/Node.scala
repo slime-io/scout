@@ -3,11 +3,13 @@ package scout
 /**
  * Created by 张武(zhangwu@corp.netease.com) at 2021/4/8
  */
-class Node(val view: String, val chch: List[Node] = Nil) {
+class Node(val view: String, val children: List[Node] = Nil) {
   val nodeId = Node.totalNodes
   Node.totalNodes += 1
   def isOpen = Node.openNodes.contains(nodeId)
   def open = Node.openNodes.add(nodeId)
+
+  override def toString = s"Node($view, $children)"
 }
 object Node {
   var totalNodes = 0
