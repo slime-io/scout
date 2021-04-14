@@ -1,30 +1,49 @@
 package scout
 
-import org.scalajs.jquery.JQueryStatic
+import scout.UIDeps._
 import scout.cmd.Command
 
-import scala.scalajs.js.annotation.JSImport
+import scala.scalajs.js
+import scala.scalajs.js._
 
 /**
  * Created by 张武(zhangwu@corp.netease.com) at 2021/4/8
  */
 object UI {
 
-  import scala.scalajs.js
-  import scala.scalajs.js._
-
-  @js.native
-  @JSImport("jquery", JSImport.Namespace)
-  object $ extends JQueryStatic
-
-  @js.native
-  @JSImport("d3", JSImport.Namespace)
-  object _d3 extends Any
-  val d3 = _d3.asInstanceOf[Dynamic]
-
   var uiNode: Node = Main.data
 
   def init(): Unit = {
+    import org.scalajs.dom.document
+    val style = document.createElement("style")
+    style.innerHTML = """
+      |.node circle {
+      |    fill: #fff;
+      |    stroke: steelblue;
+      |    stroke-width: 1.5px;
+      |  }
+      |  .node {
+      |    font: 12px sans-serif;
+      |  }
+      |  .link {
+      |    fill: none;
+      |    stroke: #ccc;
+      |    stroke-width: 1.5px;
+      |}""".stripMargin
+    document.getElementsByTagName("head")(0).appendChild(style)
+    document.getElementById("rootApp").innerHTML = """
+      |<div style="width:100%;  margin-left: auto;margin-right: auto;" align="left">
+      |    <div style="width:20%; float:left; position: fixed;">
+      |        <input id="size" type="range" min="45" max="300" value="45"/>
+      |        <input id="curl" type="text" name="request"/>
+      |        <pre><code id="scanner"></code></pre>
+      |    </div>
+      |
+      |    <div style="width:80%; float:left; ">
+      |        <div id="graph"></div>
+      |    </div>
+      |</div>
+      |""".stripMargin
     $("#size").on("input propertychange", () => render())
     $("#curl").keyup{ () =>
       val cmd = $("#curl").`val`().asInstanceOf[String]
