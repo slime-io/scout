@@ -1,6 +1,14 @@
+// [#protodoc-title: Stats]
+// Statistics :ref:`architecture overview <arch_overview_statistics>`.
+
 syntax = "proto3";
 
 package envoy.config.metrics.v2;
+
+option java_outer_classname = "StatsProto";
+option java_multiple_files = true;
+option java_package = "io.envoyproxy.envoy.config.metrics.v2";
+option go_package = "v2";
 
 import "envoy/api/v2/core/address.proto";
 import "envoy/type/matcher/string.proto";
@@ -9,25 +17,16 @@ import "google/protobuf/any.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/wrappers.proto";
 
-import "udpa/annotations/status.proto";
 import "validate/validate.proto";
-
-option java_package = "io.envoyproxy.envoy.config.metrics.v2";
-option java_outer_classname = "StatsProto";
-option java_multiple_files = true;
-option (udpa.annotations.file_status).package_version_status = FROZEN;
-
-// [#protodoc-title: Stats]
-// Statistics :ref:`architecture overview <arch_overview_statistics>`.
 
 // Configuration for pluggable stats sinks.
 message StatsSink {
   // The name of the stats sink to instantiate. The name must match a supported
   // stats sink. The built-in stats sinks are:
   //
-  // * :ref:`envoy.stat_sinks.statsd <envoy_api_msg_config.metrics.v2.StatsdSink>`
-  // * :ref:`envoy.stat_sinks.dog_statsd <envoy_api_msg_config.metrics.v2.DogStatsdSink>`
-  // * :ref:`envoy.stat_sinks.metrics_service <envoy_api_msg_config.metrics.v2.MetricsServiceConfig>`
+  // * :ref:`envoy.statsd <envoy_api_msg_config.metrics.v2.StatsdSink>`
+  // * :ref:`envoy.dog_statsd <envoy_api_msg_config.metrics.v2.DogStatsdSink>`
+  // * :ref:`envoy.metrics_service <envoy_api_msg_config.metrics.v2.MetricsServiceConfig>`
   // * :ref:`envoy.stat_sinks.hystrix <envoy_api_msg_config.metrics.v2.HystrixSink>`
   //
   // Sinks optionally support tagged/multiple dimensional metrics.
@@ -36,7 +35,7 @@ message StatsSink {
   // Stats sink specific configuration which depends on the sink being instantiated. See
   // :ref:`StatsdSink <envoy_api_msg_config.metrics.v2.StatsdSink>` for an example.
   oneof config_type {
-    google.protobuf.Struct config = 2 [deprecated = true];
+    google.protobuf.Struct config = 2;
 
     google.protobuf.Any typed_config = 3;
   }
@@ -69,11 +68,6 @@ message StatsConfig {
   // Inclusion/exclusion matcher for stat name creation. If not provided, all stats are instantiated
   // as normal. Preventing the instantiation of certain families of stats can improve memory
   // performance for Envoys running especially large configs.
-  //
-  // .. warning::
-  //   Excluding stats may affect Envoy's behavior in undocumented ways. See
-  //   `issue #8771 <https://github.com/envoyproxy/envoy/issues/8771>`_ for more information.
-  //   If any unexpected behavior changes are observed, please open a new issue immediately.
   StatsMatcher stats_matcher = 3;
 }
 
@@ -156,12 +150,12 @@ message StatsMatcher {
 
     // Exclusive match. All stats are enabled except for those matching one of the supplied
     // StringMatcher protos.
-    type.matcher.ListStringMatcher exclusion_list = 2;
+    envoy.type.matcher.ListStringMatcher exclusion_list = 2;
 
     // Inclusive match. No stats are enabled except for those matching one of the supplied
     // StringMatcher protos.
-    type.matcher.ListStringMatcher inclusion_list = 3;
-  }
+    envoy.type.matcher.ListStringMatcher inclusion_list = 3;
+  };
 }
 
 // Designates a tag name and value pair. The value may be either a fixed value
@@ -201,7 +195,7 @@ message TagSpecifier {
     //
     //   {
     //     "tag_name": "envoy.cluster_name",
-    //     "regex": "^cluster\\.((.+?)\\.)"
+    //     "regex": "^cluster\.((.+?)\.)"
     //   }
     //
     // Note that the regex will remove ``foo_cluster.`` making the tag extracted
@@ -218,11 +212,11 @@ message TagSpecifier {
     //   [
     //     {
     //       "tag_name": "envoy.http_user_agent",
-    //       "regex": "^http(?=\\.).*?\\.user_agent\\.((.+?)\\.)\\w+?$"
+    //       "regex": "^http(?=\.).*?\.user_agent\.((.+?)\.)\w+?$"
     //     },
     //     {
     //       "tag_name": "envoy.http_conn_manager_prefix",
-    //       "regex": "^http\\.((.*?)\\.)"
+    //       "regex": "^http\.((.*?)\.)"
     //     }
     //   ]
     //
@@ -238,16 +232,15 @@ message TagSpecifier {
     // ``http.user_agent.downstream_cx_total`` as the tag extracted name. The tag
     // ``envoy.http_conn_manager_prefix`` will be added with the tag value
     // ``connection_manager_1``.
-    string regex = 2 [(validate.rules).string = {max_bytes: 1024}];
+    string regex = 2 [(validate.rules).string.max_bytes = 1024];
 
     // Specifies a fixed tag value for the ``tag_name``.
     string fixed_value = 3;
   }
 }
 
-// Stats configuration proto schema for built-in *envoy.stat_sinks.statsd* sink. This sink does not support
+// Stats configuration proto schema for built-in *envoy.statsd* sink. This sink does not support
 // tagged metrics.
-// [#extension: envoy.stat_sinks.statsd]
 message StatsdSink {
   oneof statsd_specifier {
     option (validate.required) = true;
@@ -255,14 +248,13 @@ message StatsdSink {
     // The UDP address of a running `statsd <https://github.com/etsy/statsd>`_
     // compliant listener. If specified, statistics will be flushed to this
     // address.
-    api.v2.core.Address address = 1;
+    envoy.api.v2.core.Address address = 1;
 
     // The name of a cluster that is running a TCP `statsd
     // <https://github.com/etsy/statsd>`_ compliant listener. If specified,
     // Envoy will connect to this cluster to flush statistics.
     string tcp_cluster_name = 2;
   }
-
   // Optional custom prefix for StatsdSink. If
   // specified, this will override the default prefix.
   // For example:
@@ -292,21 +284,21 @@ message StatsdSink {
   string prefix = 3;
 }
 
-// Stats configuration proto schema for built-in *envoy.stat_sinks.dog_statsd* sink.
+// Stats configuration proto schema for built-in *envoy.dog_statsd* sink.
 // The sink emits stats with `DogStatsD <https://docs.datadoghq.com/guides/dogstatsd/>`_
 // compatible tags. Tags are configurable via :ref:`StatsConfig
 // <envoy_api_msg_config.metrics.v2.StatsConfig>`.
-// [#extension: envoy.stat_sinks.dog_statsd]
+// [#comment:next free field: 3]
 message DogStatsdSink {
-  reserved 2;
-
   oneof dog_statsd_specifier {
     option (validate.required) = true;
 
     // The UDP address of a running DogStatsD compliant listener. If specified,
     // statistics will be flushed to this address.
-    api.v2.core.Address address = 1;
+    envoy.api.v2.core.Address address = 1;
   }
+
+  reserved 2;
 
   // Optional custom metric name prefix. See :ref:`StatsdSink's prefix field
   // <envoy_api_field_config.metrics.v2.StatsdSink.prefix>` for more details.
@@ -322,7 +314,6 @@ message DogStatsdSink {
 // Note that only a single HystrixSink should be configured.
 //
 // Streaming is started through an admin endpoint :http:get:`/hystrix_event_stream`.
-// [#extension: envoy.stat_sinks.hystrix]
 message HystrixSink {
   // The number of buckets the rolling statistical window is divided into.
   //

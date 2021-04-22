@@ -1,5 +1,9 @@
 package scout
 
+import io.envoyproxy.envoy.config.accesslog.v2.file.FileAccessLog
+import io.envoyproxy.envoy.config.filter.network.tcp_proxy.v2.tcp_proxy.TcpProxy
+import istio.mixer.v1.config.client.client_config.{HttpClientConfig, ServiceConfig, TcpClientConfig}
+
 /**
  * Created by 张武(zhangwu@corp.netease.com) at 2021/4/8
  */
@@ -13,8 +17,11 @@ object TR {
         .map(_.parseFrom(pb.value.toByteArray))
   }
 
-  val tr = TypeRegistry()
-    .addMessage[io.envoyproxy.envoy.admin.v3.config_dump.BootstrapConfigDump]
+  val printer = new scalapb.json4s.Printer
+  val parser = new scalapb.json4s.Parser().withTypeRegistry(tr).ignoringUnknownFields
+
+  private def tr = TypeRegistry()
+/*    .addMessage[io.envoyproxy.envoy.admin.v3.config_dump.BootstrapConfigDump]
     .addMessage[io.envoyproxy.envoy.admin.v3.config_dump.ClustersConfigDump]
     .addMessage[io.envoyproxy.envoy.admin.v3.config_dump.ListenersConfigDump]
     .addMessage[io.envoyproxy.envoy.admin.v3.config_dump.RoutesConfigDump]
@@ -37,32 +44,20 @@ object TR {
     .addMessage[io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.tls.DownstreamTlsContext]
     .addMessage[io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.secret.Secret]
     .addMessage[io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.tls.UpstreamTlsContext]
+    .addMessage[istio.envoy.config.filter.http.alpn.v2alpha1.config.FilterConfig]
+    .addMessage[istio.envoy.config.filter.http.authn.v2alpha1.config.FilterConfig]*/
     .addMessage[com.github.udpa.udpa.`type`.v1.typed_struct.TypedStruct]
     .addMessage[com.google.protobuf.wrappers.StringValue]
-    .addMessage[istio.envoy.config.filter.http.alpn.v2alpha1.config.FilterConfig]
-    .addMessage[istio.envoy.config.filter.http.authn.v2alpha1.config.FilterConfig]
     .addMessage[io.envoyproxy.envoy.admin.v2alpha.config_dump.BootstrapConfigDump]
     .addMessage[io.envoyproxy.envoy.admin.v2alpha.config_dump.ClustersConfigDump]
     .addMessage[io.envoyproxy.envoy.admin.v2alpha.config_dump.ListenersConfigDump]
     .addMessage[io.envoyproxy.envoy.admin.v2alpha.config_dump.RoutesConfigDump]
     .addMessage[io.envoyproxy.envoy.admin.v2alpha.config_dump.ScopedRoutesConfigDump]
     .addMessage[io.envoyproxy.envoy.admin.v2alpha.config_dump.SecretsConfigDump]
-    .addMessage[io.envoyproxy.envoy.api.v2.cluster.Cluster]
-    .addMessage[io.envoyproxy.envoy.api.v2.listener.Listener]
-    .addMessage[io.envoyproxy.envoy.api.v2.route.RouteConfiguration]
-    .addMessage[io.envoyproxy.envoy.config.accesslog.v2.file.FileAccessLog]
-    .addMessage[io.envoyproxy.envoy.config.filter.http.cors.v2.cors.Cors]
-    .addMessage[io.envoyproxy.envoy.config.filter.http.fault.v2.fault.HTTPFault]
-    .addMessage[io.envoyproxy.envoy.config.filter.http.grpc_stats.v2alpha.config.FilterConfig]
-    .addMessage[io.envoyproxy.envoy.config.filter.http.router.v2.router.Router]
-    .addMessage[io.envoyproxy.envoy.config.filter.listener.http_inspector.v2.http_inspector.HttpInspector]
-    .addMessage[io.envoyproxy.envoy.config.filter.listener.original_dst.v2.original_dst.OriginalDst]
-    .addMessage[io.envoyproxy.envoy.config.filter.listener.tls_inspector.v2.tls_inspector.TlsInspector]
     .addMessage[io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.http_connection_manager.HttpConnectionManager]
-    .addMessage[io.envoyproxy.envoy.config.filter.network.tcp_proxy.v2.tcp_proxy.TcpProxy]
-    .addMessage[io.envoyproxy.envoy.config.trace.v2.zipkin.ZipkinConfig]
-    .addMessage[com.github.udpa.udpa.`type`.v1.typed_struct.TypedStruct]
-    .addMessage[com.google.protobuf.wrappers.StringValue]
-    .addMessage[istio.envoy.config.filter.http.alpn.v2alpha1.config.FilterConfig]
-    .addMessage[istio.envoy.config.filter.http.authn.v2alpha1.config.FilterConfig]
+    .addMessage[ServiceConfig]
+    .addMessage[HttpClientConfig]
+    .addMessage[FileAccessLog]
+    .addMessage[TcpProxy]
+    .addMessage[TcpClientConfig]
 }

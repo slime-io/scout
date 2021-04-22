@@ -1,10 +1,11 @@
 package scout
 
-import io.envoyproxy.envoy.admin.v3.config_dump.ListenersConfigDump
-import io.envoyproxy.envoy.config.listener.v3.listener.Listener
-import io.envoyproxy.envoy.config.listener.v3.listener_components.{Filter, FilterChain, FilterChainMatch}
-import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.http_connection_manager.HttpConnectionManager
+import io.envoyproxy.envoy.admin.v2alpha.config_dump.ListenersConfigDump
+import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.http_connection_manager.HttpConnectionManager
 import TR._
+import io.envoyproxy.envoy.api.v2.lds.Listener
+import io.envoyproxy.envoy.api.v2.listener.listener.{Filter, FilterChain, FilterChainMatch}
+import scalapb.json4s.Parser
 
 /**
  * Created by 张武(zhangwu@corp.netease.com) at 2021/4/8
@@ -29,10 +30,13 @@ case class DescribeListener(name: String, state: String, filterChains: List[Desc
 )
 object DescribeListener {
   def describeFilter(f: Filter): DescribeFilter = {
-    f.configType.typedConfig
-      .flatMap(t => t.as[HttpConnectionManager])
+    f.configType.config
+      .map{ t =>
+        parser.fromJsonString[HttpConnectionManager](printer.print(t))
+      }
       .map(hcm => DescribeFilter(f.name, hcm.httpFilters.map(_.name).toList, hcm.getRds.routeConfigName))
-      .getOrElse(DescribeFilter(f.name, Nil, ""))
+      .getOrElse(f.configType.typedConfig.flatMap(t=>t.as[HttpConnectionManager])
+        .map(hcm=>DescribeFilter(f.name, hcm.httpFilters.map(_.name).toList, hcm.getRds.routeConfigName)).getOrElse(DescribeFilter(f.name, Nil, "")))
   }
   def describeFilterChainMatch(fcm: FilterChainMatch) = {
     DescribeFilterChainMatch(fcm.applicationProtocols.mkString(", "), fcm.destinationPort.getOrElse(0), fcm.prefixRanges.map(_.toString).toList)
@@ -41,11 +45,9 @@ object DescribeListener {
     DescribeFilterChain(fc.filterChainMatch.map(describeFilterChainMatch), fc.filters.map(f => f.name -> describeFilter(f)).toMap)
   }
   def apply(l: ListenersConfigDump.DynamicListener): DescribeListener = {
-    val state = Seq(l.activeState, l.errorState, l.warmingState, l.drainingState)
-      .reduce(_.orElse(_)).map(_.getClass.getSimpleName).getOrElse("None")
-    l.activeState
-      .flatMap(_.listener.flatMap(_.as[Listener]))
-      .map(listener => DescribeListener(l.name, state, listener.filterChains.map(describeFilterChain).toList))
-      .getOrElse(new DescribeListener(l.name, state, Nil))
+    val state = "active"
+    l.listener
+      .map(listener => DescribeListener(listener.name, state, listener.filterChains.map(describeFilterChain).toList))
+      .getOrElse(new DescribeListener("", state, Nil))
   }
 }

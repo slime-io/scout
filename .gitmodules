@@ -1,0 +1,9 @@
+[submodule "data-plane-api"]
+	path = data-plane-api
+	url = https://github.com/envoyproxy/data-plane-api.git
+[submodule "java-control-plane"]
+	path = java-control-plane
+	url = https://github.com/envoyproxy/java-control-plane.git
+[submodule "api"]
+	path = api
+	url = https://github.com/istio/api.git

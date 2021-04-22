@@ -1,6 +1,6 @@
 package scout.cmd
 
-import scout.{DescribeHeaderMatch, DescribeRoute, DescribeRouteMatch, Main}
+import scout.{DescribeCluster, DescribeDestination, DescribeEndpoint, DescribeHeaderMatch, DescribeRoute, DescribeRouteMatch, LinkDestination, LinkRDS, Main, Node}
 
 object Curl {
   val parser = {
@@ -13,7 +13,7 @@ object Curl {
       programName("curl"),
       arg[String]("url")
         .required()
-        .action{ (url, c) =>
+        .action { (url, c) =>
           val (host, port, path) = {
             val (addr, path) = Some(url.indexOf("/")).filter(_ != -1).map(url.splitAt).getOrElse(url, "/")
             Some(addr.lastIndexOf(":")).filter(_ != -1).map(addr.splitAt).getOrElse(addr, "") :+ path
@@ -33,6 +33,7 @@ object Curl {
       help("asdfasdfasdf"),
     )
   }
+
   def apply(cmd: Seq[String]): Option[Curl] = {
     scopt.OParser.parse(parser, cmd, Curl(Map.empty, "", "", 80))
   }
@@ -40,17 +41,20 @@ object Curl {
 
 case class Curl(header: Map[String, String], host: String, path: String, port: Int) extends Command {
 
-  override def doExec(): Option[DescribeRoute] = {
+  override def doExec(): Option[Node] = {
     val prime = host + "_" + port.toString
     val secondary = "0.0.0.0_" + port.toString
     println((prime, secondary))
     val route = Main.listeners.get(prime).orElse(Main.listeners.get(secondary))
-      .flatMap(_.filterChains.flatMap(_.filters.get("envoy.filters.network.http_connection_manager")).find(_.rds.nonEmpty))
+      .flatMap(_.filterChains.flatMap(_.filters.get("envoy.http_connection_manager")).find(_.rds.nonEmpty))
       .flatMap(filter => Main.rds.get(filter.rds))
       .flatMap(_.virtualHost.get(host))
       .flatMap(_.routes.find(s => isMatch(path, header, s.`match`)))
-    route.foreach(o=>printf("name:%s, destination:%s",o.name,o.destination))
-    route
+    route.foreach(o => printf("name:%s, destination:%s", o.name, o.destination))
+
+    Option(LinkRDS(route.getOrElse(DescribeRoute("", DescribeRouteMatch("", "", "", Map()), List[DescribeDestination]())),
+      route.getOrElse(DescribeRoute("", DescribeRouteMatch("", "", "", Map[String, DescribeHeaderMatch]()), List[DescribeDestination]()))
+        .destination.map(l => LinkDestination(l, Main.cds.getOrElse(l.cluster, DescribeCluster("", List[DescribeEndpoint]()))))))
   }
 
   def isMatch(path: String, headers: Map[String, String], m: DescribeRouteMatch): Boolean = {

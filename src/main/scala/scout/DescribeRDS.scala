@@ -1,8 +1,8 @@
 package scout
 
-import io.envoyproxy.envoy.config.route.v3.route.RouteConfiguration
-import io.envoyproxy.envoy.config.route.v3.route_components.{HeaderMatcher, RouteAction, RouteMatch, VirtualHost}
 import TR._
+import io.envoyproxy.envoy.api.v2.rds.RouteConfiguration
+import io.envoyproxy.envoy.api.v2.route.route.{HeaderMatcher, Route, RouteAction, RouteMatch, VirtualHost}
 
 /**
  * Created by 张武(zhangwu@corp.netease.com) at 2021/4/8
@@ -27,11 +27,14 @@ case class DescribeHost(name: String, domain: List[String], routes: List[Describ
   s"[VirtualHost] $name", Node("Domains", domain.map(s => Node(s"[Domain] $s"))) :: routes
 )
 case class DescribeRDS(name: String, virtualHost: Map[String, DescribeHost]) extends Node(
-  s"[Listener] $name",
+  s"[RouteConfig] $name",
   virtualHost.map(tp => Node("[Domain] " + tp._1, List(tp._2))).toList
 )
+case class DisplayRDS(name: String, virtualHost: List[DescribeHost]) extends Node(
+  s"[RouteConfig] $name", virtualHost
+)
+
 object DescribeRDS {
-  import io.envoyproxy.envoy.config.route.v3.route_components.Route
 
   def describeDestinations(clusterSpecifier: RouteAction.ClusterSpecifier): List[DescribeDestination] = {
     clusterSpecifier.cluster.map(c => List(DescribeDestination(c, 100)))
@@ -42,14 +45,14 @@ object DescribeRDS {
 
   def describeHeaderMatch(h: HeaderMatcher) = {
     val hs = h.headerMatchSpecifier
-    DescribeHeaderMatch(hs.prefixMatch.getOrElse(""), hs.suffixMatch.getOrElse(""), hs.exactMatch.getOrElse(""), hs.safeRegexMatch.map(_.regex).getOrElse(""), hs.presentMatch.map(_.toString).getOrElse(""), hs.containsMatch.getOrElse(""))
+    DescribeHeaderMatch(hs.prefixMatch.getOrElse(""), hs.suffixMatch.getOrElse(""), hs.exactMatch.getOrElse(""), hs.regexMatch.getOrElse(""), hs.presentMatch.map(_.toString).getOrElse(""), "")
   }
 
   def describeRouteMatch(mtch: RouteMatch) = {
     mtch.headers
       .map(h => h.name -> describeHeaderMatch(h))
     val ps = mtch.pathSpecifier
-    DescribeRouteMatch(ps.prefix.getOrElse(""), ps.safeRegex.map(_.regex).getOrElse(""), ps.path.getOrElse(""), mtch.headers.map(hm => hm.name -> describeHeaderMatch(hm)).toMap)
+    DescribeRouteMatch(ps.prefix.getOrElse(""), ps.regex.getOrElse(""), ps.path.getOrElse(""), mtch.headers.map(hm => hm.name -> describeHeaderMatch(hm)).toMap)
   }
 
   def describeRoute(r: Route): Option[DescribeRoute] = {
@@ -66,6 +69,11 @@ object DescribeRDS {
       .flatMap(vh => vh.domains.map(d => (d, describeHost(vh))))
       .toMap
     DescribeRDS(rc.name, vhs)
+  }
+  def display(rc: RouteConfiguration):DisplayRDS = {
+    val vhs = rc.virtualHosts
+      .map(describeHost)
+    DisplayRDS(rc.name, vhs.toList)
   }
 }
 

@@ -2,7 +2,7 @@
   exec /usr/local/bin/amm -s "$0" "$0" "$@"
 !#
 
-
+import $repo.`https://oss.sonatype.org/content/repositories/snapshots`
 import $ivy.`com.zhranklin::scala-tricks:0.2.1-SNAPSHOT`
 import $ivy.`com.lihaoyi::ammonite-ops:2.2.0`
 import $ivy.`com.flipkart.zjsonpatch:zjsonpatch:0.4.11`
