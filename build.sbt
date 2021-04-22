@@ -6,7 +6,12 @@ enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin)
 
 scalaJSUseMainModuleInitializer := true
 
+Compile / PB.targets := Seq(
+  scalapb.gen(grpc=false) -> (Compile / sourceManaged).value / "scalapb"
+)
+
 libraryDependencies ++= Seq(
+  "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
   "com.github.scopt"     %%% "scopt"              % "4.0.1",
   "com.thesamet.scalapb" %%% "scalapb-runtime"    % "0.10.10",
   "com.thesamet.scalapb" %%% "scalapb-runtime"    % "0.10.10"  % "protobuf",
