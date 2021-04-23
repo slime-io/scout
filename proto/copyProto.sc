@@ -20,7 +20,7 @@ import scala.jdk.CollectionConverters._
 import ammonite.ops._
 import RegexOpsContext._
 
-case class ProtoFile(path: String, javaPkg: Option[String], deps: List[String])
+case class ProtoFile(path: String, javaPkg: Option[String], deps: List[String], content: String)
 object ProtoFile {
   def apply(path: Path, base: Path): ProtoFile = {
     val relPath = path.relativeTo(base).toString()
@@ -40,31 +40,50 @@ object ProtoFile {
           case _ => None
         }.headOption
       )
-    ProtoFile(relPath, jp, deps)
+    ProtoFile(relPath, jp, deps, proto.trim)
   }
 }
 
 @main
 def main(scriptPath: Path): Unit = {
-  val source = scriptPath/up/up/'proto/'protobuf
-  val target = scriptPath/up/up/'src/'main/'protobuf
+  val basePath = scriptPath/up/up
+  val v2: Path = basePath/'proto/'v2
+  val v3: Path = basePath/'proto/'protobuf
+  val target: Path = basePath/'src/'main/'protobuf
+  val filesV2 = protosForUse(v2, usesV2).map(p => p.path -> p).toMap
+  val filesV3 = protosForUse(v3, usesV3).map(p => p.path -> p).toMap
+  val pathsV2 = filesV2.keySet
+  val pathsV3 = filesV3.keySet
+  val pathsCommon = pathsV2.intersect(pathsV3)
+  println("commons:")
+  pathsCommon.foreach { f =>
+    val same = filesV2(f).content.trim == filesV3(f).content.trim
+    println(s"$f: ${if (same) "√" else "X"}")
+  }
+  println
+  rm ! target
+  copyProtos(pathsV2, v2, target)
+  copyProtos(pathsV3.diff(pathsCommon), v3, target)
+}
+
+def protosForUse(source: Path, use: Set[String]) = {
   val all = protos(source, source)
-  //  all.foreach(println)
   val pathToProto = all.map(p => p.path -> p).toMap
-  val protoPaths = uses.flatMap(jp => all.find(_.javaPkg.contains(jp)).map(_.path))
+  val protoPaths = use.flatMap(jp => all.find(_.javaPkg.contains(jp)).map(_.path))
   val files = protosWithDeps(protoPaths, pathToProto)
-  rm!target
+  files.flatMap(pathToProto.get)
+}
+def copyProtos(files: Set[String], source: Path, target: Path) = {
   files.foreach { f =>
     val sourceFile = RelPath(f).resolveFrom(source)
     if (sourceFile.toIO.exists()) {
       val targetFile = RelPath(f).resolveFrom(target)
-      val dir = targetFile/up
-      mkdir! dir
+      val dir = targetFile / up
+      mkdir ! dir
       cp(sourceFile, targetFile)
     }
   }
 }
-
 
 def protos(path: Path, base: Path): List[ProtoFile] = {
   if (path.isDir) (ls!path).toList.flatMap(p => protos(p, base))
@@ -72,12 +91,22 @@ def protos(path: Path, base: Path): List[ProtoFile] = {
 }
 
 def protosWithDeps(protoPaths: Set[String], all: Map[String, ProtoFile]): Set[String] = {
-  val res = protoPaths.flatMap(all.get).flatMap(_.deps).toSet ++ protoPaths
+  val res = protoPaths.flatMap(all.get).flatMap(_.deps) ++ protoPaths
   if (res.size == protoPaths.size) protoPaths
   else protosWithDeps(res, all)
 }
 
-def uses = """
+def usesV2 = """
+  com.github.udpa.udpa.`type`.v1.typed_struct.TypedStruct
+  com.google.protobuf.wrappers.StringValue
+  io.envoyproxy.envoy.admin.v2alpha.config_dump.BootstrapConfigDump
+  io.envoyproxy.envoy.admin.v2alpha.config_dump.ClustersConfigDump
+  io.envoyproxy.envoy.admin.v2alpha.config_dump.ListenersConfigDump
+  io.envoyproxy.envoy.admin.v2alpha.config_dump.RoutesConfigDump
+  io.envoyproxy.envoy.admin.v2alpha.config_dump.ScopedRoutesConfigDump
+  io.envoyproxy.envoy.admin.v2alpha.config_dump.SecretsConfigDump
+  """.split("\n").map(_.trim).filter(_.nonEmpty).map(p => p.splitAt(p.lastIndexOf('.'))._1).toSet
+def usesV3 = """
   io.envoyproxy.envoy.admin.v3.config_dump.BootstrapConfigDump
   io.envoyproxy.envoy.admin.v3.config_dump.ClustersConfigDump
   io.envoyproxy.envoy.admin.v3.config_dump.ListenersConfigDump
@@ -102,30 +131,6 @@ def uses = """
   io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.secret.Secret
   io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.tls.UpstreamTlsContext
   com.github.udpa.udpa.type.v1.typed_struct.TypedStruct
-  com.google.protobuf.wrappers.StringValue
-  istio.envoy.config.filter.http.alpn.v2alpha1.config.FilterConfig
-  istio.envoy.config.filter.http.authn.v2alpha1.config.FilterConfig
-  io.envoyproxy.envoy.admin.v2alpha.config_dump.BootstrapConfigDump
-  io.envoyproxy.envoy.admin.v2alpha.config_dump.ClustersConfigDump
-  io.envoyproxy.envoy.admin.v2alpha.config_dump.ListenersConfigDump
-  io.envoyproxy.envoy.admin.v2alpha.config_dump.RoutesConfigDump
-  io.envoyproxy.envoy.admin.v2alpha.config_dump.ScopedRoutesConfigDump
-  io.envoyproxy.envoy.admin.v2alpha.config_dump.SecretsConfigDump
-  io.envoyproxy.envoy.api.v2.cluster.Cluster
-  io.envoyproxy.envoy.api.v2.listener.Listener
-  io.envoyproxy.envoy.api.v2.route.RouteConfiguration
-  io.envoyproxy.envoy.config.accesslog.v2.file.FileAccessLog
-  io.envoyproxy.envoy.config.filter.http.cors.v2.cors.Cors
-  io.envoyproxy.envoy.config.filter.http.fault.v2.fault.HTTPFault
-  io.envoyproxy.envoy.config.filter.http.grpc_stats.v2alpha.config.FilterConfig
-  io.envoyproxy.envoy.config.filter.http.router.v2.router.Router
-  io.envoyproxy.envoy.config.filter.listener.http_inspector.v2.http_inspector.HttpInspector
-  io.envoyproxy.envoy.config.filter.listener.original_dst.v2.original_dst.OriginalDst
-  io.envoyproxy.envoy.config.filter.listener.tls_inspector.v2.tls_inspector.TlsInspector
-  io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.http_connection_manager.HttpConnectionManager
-  io.envoyproxy.envoy.config.filter.network.tcp_proxy.v2.tcp_proxy.TcpProxy
-  io.envoyproxy.envoy.config.trace.v2.zipkin.ZipkinConfig
-  com.github.udpa.udpa.`type`.v1.typed_struct.TypedStruct
   com.google.protobuf.wrappers.StringValue
   istio.envoy.config.filter.http.alpn.v2alpha1.config.FilterConfig
   istio.envoy.config.filter.http.authn.v2alpha1.config.FilterConfig
