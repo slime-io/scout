@@ -48,32 +48,33 @@ case class Curl(header: Map[String, String], host: String, path: String, port: I
     val route = Main.listeners.get(prime).orElse(Main.listeners.get(secondary))
       .flatMap(_.filterChains.flatMap(_.filters.get("envoy.http_connection_manager")).find(_.rds.nonEmpty))
       .flatMap(filter => Main.rds.get(filter.rds))
-      .flatMap(_.virtualHost.get(host))
+      .flatMap(k => k.virtualHost.get(host).orElse(k.virtualHost.get("*")))
       .flatMap(_.routes.find(s => isMatch(path, header, s.`match`)))
     route.foreach(o => printf("name:%s, destination:%s", o.name, o.destination))
 
-    Option(LinkRDS(route.getOrElse(DescribeRoute("", DescribeRouteMatch("", "", "", Map()), List[DescribeDestination]())),
-      route.getOrElse(DescribeRoute("", DescribeRouteMatch("", "", "", Map[String, DescribeHeaderMatch]()), List[DescribeDestination]()))
-        .destination.map(l => LinkDestination(l, Main.cds.getOrElse(l.cluster, DescribeCluster("", List[DescribeEndpoint]()))))))
+    if (route.isEmpty) {
+      return Option(Node("NO Route Matched", List()))
+    }
+    route.map(r => LinkRDS(r, r.destination.map(l => LinkDestination(l, Main.cds.getOrElse(l.cluster, DescribeCluster("No Endpoint", List[DescribeEndpoint]()))))))
   }
 
-  def isMatch(path: String, headers: Map[String, String], m: DescribeRouteMatch): Boolean = {
-    List(
-      m.prefix.isEmpty || path.startsWith(m.prefix),
-      m.exact.isEmpty || path == m.exact,
-      m.regex.isEmpty || path.matches(m.regex),
-      m.headerMatch.forall(k => headers.get(k._1).exists(v => isHeaderMatch(v, k._2)))
-    ).reduce(_ && _)
-  }
+    def isMatch(path: String, headers: Map[String, String], m: DescribeRouteMatch): Boolean = {
+      List(
+        m.prefix.isEmpty || path.startsWith(m.prefix),
+        m.exact.isEmpty || path == m.exact,
+        m.regex.isEmpty || path.matches(m.regex),
+        m.headerMatch.forall(k => headers.get(k._1).exists(v => isHeaderMatch(v, k._2)))
+      ).reduce(_ && _)
+    }
 
-  def isHeaderMatch(value: String, headerMatch: DescribeHeaderMatch): Boolean = {
-    List(
-      headerMatch.exactMatch.isEmpty || value == headerMatch.exactMatch,
-      headerMatch.prefixMatch.isEmpty || value.startsWith(headerMatch.prefixMatch),
-      headerMatch.suffixMatch.isEmpty || value.endsWith(headerMatch.suffixMatch),
-      headerMatch.containsMatch.isEmpty || value.contains(headerMatch.containsMatch),
-      headerMatch.safeRegexMatch.isEmpty || value.matches(headerMatch.safeRegexMatch)
-    ).reduce(_ && _)
-  }
+    def isHeaderMatch(value: String, headerMatch: DescribeHeaderMatch): Boolean = {
+      List(
+        headerMatch.exactMatch.isEmpty || value == headerMatch.exactMatch,
+        headerMatch.prefixMatch.isEmpty || value.startsWith(headerMatch.prefixMatch),
+        headerMatch.suffixMatch.isEmpty || value.endsWith(headerMatch.suffixMatch),
+        headerMatch.containsMatch.isEmpty || value.contains(headerMatch.containsMatch),
+        headerMatch.safeRegexMatch.isEmpty || value.matches(headerMatch.safeRegexMatch)
+      ).reduce(_ && _)
+    }
 
-}
+  }
